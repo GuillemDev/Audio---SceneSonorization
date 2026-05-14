@@ -113,29 +113,17 @@ public class ThirdPersonCamera : MonoBehaviour
 
     private void HandleInput()
     {
+        if (PauseMenu.GameIsPaused) return;
+
         // Mouse look
-        _targetYaw   += Input.GetAxis("Mouse X") * sensitivityX;
-        _targetPitch -= Input.GetAxis("Mouse Y") * sensitivityY;  // inverted so up = up
-        _targetPitch  = Mathf.Clamp(_targetPitch, minVerticalAngle, maxVerticalAngle);
+        _targetYaw += Input.GetAxis("Mouse X") * sensitivityX;
+        _targetPitch -= Input.GetAxis("Mouse Y") * sensitivityY;
+        _targetPitch = Mathf.Clamp(_targetPitch, minVerticalAngle, maxVerticalAngle);
 
         // Scroll zoom
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         _targetDistance -= scroll * zoomSpeed;
-        _targetDistance  = Mathf.Clamp(_targetDistance, minDistance, maxDistance);
-
-        // Optional: unlock cursor with Escape
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-
-        // Re-lock on click
-        if (Input.GetMouseButtonDown(0) && Cursor.lockState != CursorLockMode.Locked)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        _targetDistance = Mathf.Clamp(_targetDistance, minDistance, maxDistance);
     }
 
     // ── Smoothing ────────────────────────────────────────────────────────────

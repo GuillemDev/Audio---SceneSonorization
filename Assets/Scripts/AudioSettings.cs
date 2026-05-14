@@ -6,15 +6,12 @@ public class AudioSettings : MonoBehaviour
 {
     public static AudioSettings Instance { get; private set; }
 
-
     private const string MASTER_VOLUME_PARAM = "MASTER_VOLUME";
     private const string MUSIC_VOLUME_PARAM = "MUSIC_VOLUME";
     private const string AMBIENCE_VOLUME_PARAM = "AMBIENCE_VOLUME";
     private const string SFX_VOLUME_PARAM = "SFX_VOLUME";
 
     [SerializeField] private AudioMixer m_Mixer;
-    [SerializeField] private AudioMixerSnapshot m_DefaultSnapshot;
-    [SerializeField] private AudioMixerSnapshot[] m_Snapshots;
 
     [SerializeField] public Slider m_MasterSlider;
     [SerializeField] public Slider m_MusicSlider;
@@ -88,12 +85,6 @@ public class AudioSettings : MonoBehaviour
     {
         m_SfxSlider.value = PlayerPrefs.GetFloat("sfxVolume");
         SetSFXVolumeFromSlider();
-    }
-
-    public enum AudioState
-    {
-        GAMEPLAY = -1,
-        PAUSE_MENU
     }
 
     public float MasterVolume
@@ -199,48 +190,5 @@ public class AudioSettings : MonoBehaviour
         m_SFXVolume = v;
         PlayerPrefs.SetFloat("sfxVolume", m_SFXVolume);
         m_Mixer.SetFloat(SFX_VOLUME_PARAM, Mathf.Log10(m_SFXVolume) * 20f);
-    }
-
-
-    public AudioState CurrentSnapshot
-    {
-        set
-        {
-            if (value == AudioState.GAMEPLAY)
-                return;
-
-            m_Snapshots[(int)value].TransitionTo(2);
-        }
-    }
-
-    public void SetCurrentSnapshot(AudioState state, float duration)
-    {
-        if (state == AudioState.GAMEPLAY)
-            m_DefaultSnapshot.TransitionTo(duration);
-        else
-            m_Snapshots[(int)state].TransitionTo(duration);
-    }
-
-    AudioSource source;
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.LeftShift))
-            ActivateLoopSound();
-        else if (Input.GetKeyUp(KeyCode.LeftShift))
-            DeactivateLoopSound();
-    }
-
-    private void ActivateLoopSound()
-    {
-        source.Play();
-        // Corroutine to go up in volume/pitch
-    }
-
-    private void DeactivateLoopSound()
-    {
-        // Corroutine to go down in volume/pitch
-        //Wait to end
-        source.Stop();
     }
 }
