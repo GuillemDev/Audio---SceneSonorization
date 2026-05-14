@@ -9,29 +9,38 @@ public class AudioManager : MonoBehaviour
     [SerializeField] private AudioMixerSnapshot m_DefaultSnapshot;
     [SerializeField] private AudioMixerSnapshot[] m_Snapshots;
 
+    [SerializeField] private GameObject Player;
+
     private AudioState currentState = AudioState.GAMEPLAY;
+    private bool isInsideInterior = false;
 
     public enum AudioState
     {
         GAMEPLAY,
-        PAUSE_MENU
+        PAUSE_MENU,
+        INTERIOR
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.LeftShift))
-            ActivateLoopSound();
-        else if (Input.GetKeyUp(KeyCode.LeftShift))
-            DeactivateLoopSound();
+        AudioState desiredState;
+        if (PauseMenu.GameIsPaused)
+            desiredState = AudioState.PAUSE_MENU;
+        else if (isInsideInterior)
+            desiredState = AudioState.INTERIOR;
+        else
+            desiredState = AudioState.GAMEPLAY;
 
-        AudioState desiredState = PauseMenu.GameIsPaused ? AudioState.PAUSE_MENU : AudioState.GAMEPLAY;
         if (desiredState != currentState)
         {
             SetCurrentSnapshot(desiredState, 0.5f);
             currentState = desiredState;
         }
     }
-
+    public void SetInsideInterior(bool inside)
+    {
+        isInsideInterior = inside;
+    }
     public void SetCurrentSnapshot(AudioState state, float duration)
     {
         if (state == AudioState.GAMEPLAY)
