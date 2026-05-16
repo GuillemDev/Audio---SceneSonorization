@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 
 [RequireComponent(typeof(AudioSource))]
 public class FootStepManager : MonoBehaviour
@@ -7,25 +9,10 @@ public class FootStepManager : MonoBehaviour
     struct SurfaceFootstep
     {
         [SerializeField] private SurfaceType m_Surface;
-        [SerializeField] private AudioClip[] m_Footsteps;
-
-        [Space]
-        [Tooltip("Random volume range for this surface. X = min, Y = max.")]
-        [SerializeField] private Vector2 m_VolumeRange;
-
-        [Tooltip("Random pitch range for this surface. X = min, Y = max.")]
-        [SerializeField] private Vector2 m_PitchRange;
+        [SerializeField] private AudioResource m_AudioContainer;
 
         public SurfaceType Surface => m_Surface;
-
-        public AudioClip GetRandomClip()
-        {
-            if (m_Footsteps == null || m_Footsteps.Length == 0) return null;
-            return m_Footsteps[Random.Range(0, m_Footsteps.Length)];
-        }
-
-        public float GetRandomVolume() => Random.Range(m_VolumeRange.x, m_VolumeRange.y);
-        public float GetRandomPitch() => Random.Range(m_PitchRange.x, m_PitchRange.y);
+        public AudioResource AudioContainer => m_AudioContainer;
     }
 
     public enum SurfaceType { STONE, RUG }
@@ -35,12 +22,38 @@ public class FootStepManager : MonoBehaviour
 
     [SerializeField] private SurfaceFootstep[] m_FootstepSurfaces;
 
-    private AudioSource m_AudioSource;
+    // A dictionary to store a dedicated AudioSource for each surface type
+    private Dictionary<SurfaceType, AudioSource> m_AudioSourcePool = new Dictionary<SurfaceType, AudioSource>();
 
     private void Awake()
     {
-        m_AudioSource = GetComponent<AudioSource>();
-        m_AudioSource.playOnAwake = false;
+        // Get the primary AudioSource to copy its settings (Spatial blend, mixer groups, volume, etc.)
+        AudioSource baseSource = GetComponent<AudioSource>();
+        baseSource.playOnAwake = false;
+
+        // Initialize a dedicated AudioSource for each surface configuration once at startup
+        foreach (var entry in m_FootstepSurfaces)
+        {
+            if (entry.AudioContainer == null) continue;
+
+            // Create a hidden/sub-AudioSource component to prevent resource swapping leaks
+            AudioSource surfaceSpecificSource = gameObject.AddComponent<AudioSource>();
+
+            // Copy base configuration settings
+            surfaceSpecificSource.outputAudioMixerGroup = baseSource.outputAudioMixerGroup;
+            surfaceSpecificSource.spatialBlend = baseSource.spatialBlend;
+            surfaceSpecificSource.minDistance = baseSource.minDistance;
+            surfaceSpecificSource.maxDistance = baseSource.maxDistance;
+            surfaceSpecificSource.playOnAwake = false;
+
+            // Assign the resource ONCE at startup. This prevents the runtime memory leak.
+            surfaceSpecificSource.resource = entry.AudioContainer;
+
+            m_AudioSourcePool[entry.Surface] = surfaceSpecificSource;
+        }
+
+        // Disable the base source since we are using the specialized ones
+        baseSource.enabled = false;
     }
 
     /// <summary>
@@ -48,34 +61,15 @@ public class FootStepManager : MonoBehaviour
     /// </summary>
     public void PlayFootstep()
     {
-        if (!TryGetSurface(Surface, out SurfaceFootstep entry))
+        // Grab the pre-allocated AudioSource for the active surface
+        if (m_AudioSourcePool.TryGetValue(Surface, out AudioSource targetSource))
         {
-            Debug.LogWarning($"[FootStepManager] No entry found for surface: {Surface}");
-            return;
+            // Simply call play. No resource re-assignments = zero memory allocations!
+            targetSource.Play();
         }
-
-        AudioClip clip = entry.GetRandomClip();
-        if (clip == null)
+        else
         {
-            Debug.LogWarning($"[FootStepManager] No clips assigned for surface: {Surface}");
-            return;
+            Debug.LogWarning($"[FootStepManager] No pre-configured AudioSource found for surface: {Surface}");
         }
-
-        m_AudioSource.pitch = entry.GetRandomPitch();
-        m_AudioSource.PlayOneShot(clip, entry.GetRandomVolume());
-    }
-
-    private bool TryGetSurface(SurfaceType surface, out SurfaceFootstep result)
-    {
-        foreach (var entry in m_FootstepSurfaces)
-        {
-            if (entry.Surface == surface)
-            {
-                result = entry;
-                return true;
-            }
-        }
-        result = default;
-        return false;
     }
 }
